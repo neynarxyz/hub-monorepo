@@ -9,14 +9,14 @@ import {
   MessagesResponse,
   MessageType,
 } from "@farcaster/hub-nodejs";
-import { DB, MessageRow, sql } from "./db";
-import { pino } from "pino";
-import { ok, err } from "neverthrow";
 import { randomUUID } from "crypto";
+import { err, ok } from "neverthrow";
+import { pino } from "pino";
+import { DB, MessageRow, sql } from "./db";
 
 const MAX_PAGE_SIZE = 500;
 
-type DBMessage = {
+export type DBMessage = {
   hash: Uint8Array;
   prunedAt: Date | null;
   revokedAt: Date | null;
@@ -43,12 +43,13 @@ export class MessageReconciliation {
   async reconcileMessagesForFid(
     fid: number,
     onHubMessage: (message: Message, missingInDb: boolean, prunedInDb: boolean, revokedInDb: boolean) => Promise<void>,
-    onDbMessage: (message: DBMessage, missingInHub: boolean) => Promise<void>,
+    onDbMessage?: (message: DBMessage, missingInHub: boolean) => Promise<void>,
     startTimestamp?: number,
     stopTimestamp?: number,
+    types?: MessageType[],
   ) {
     // Don't reconcile storage lends
-    for (const type of [
+    for (const type of types ?? [
       MessageType.CAST_ADD,
       MessageType.REACTION_ADD,
       MessageType.LINK_ADD,
@@ -64,7 +65,7 @@ export class MessageReconciliation {
     fid: number,
     type: MessageType,
     onHubMessage: (message: Message, missingInDb: boolean, prunedInDb: boolean, revokedInDb: boolean) => Promise<void>,
-    onDbMessage: (message: DBMessage, missingInHub: boolean) => Promise<void>,
+    onDbMessage?: (message: DBMessage, missingInHub: boolean) => Promise<void>,
     startTimestamp?: number,
     stopTimestamp?: number,
   ) {
@@ -114,15 +115,17 @@ export class MessageReconciliation {
     }
 
     // Next, reconcile messages that are in the database but not in the hub
-    const dbMessages = await this.allActiveDbMessagesOfTypeForFid(fid, type, startTimestamp, stopTimestamp);
-    if (dbMessages.isErr()) {
-      this.log.error({ startTimestamp, stopTimestamp }, "Invalid time range provided to reconciliation");
-      return;
-    }
+    if (onDbMessage) {
+      const dbMessages = await this.allActiveDbMessagesOfTypeForFid(fid, type, startTimestamp, stopTimestamp);
+      if (dbMessages.isErr()) {
+        this.log.error({ startTimestamp, stopTimestamp }, "Invalid time range provided to reconciliation");
+        return;
+      }
 
-    for (const dbMessage of dbMessages.value) {
-      const key = Buffer.from(dbMessage.hash).toString("hex");
-      await onDbMessage(dbMessage, !hubMessagesByHash[key]);
+      for (const dbMessage of dbMessages.value) {
+        const key = Buffer.from(dbMessage.hash).toString("hex");
+        await onDbMessage(dbMessage, !hubMessagesByHash[key]);
+      }
     }
   }
 
@@ -183,7 +186,12 @@ export class MessageReconciliation {
     startTimestamp?: number,
     stopTimestamp?: number,
   ) {
-    let result = await this.getAllCastMessagesByFid({ pageSize, fid, startTimestamp, stopTimestamp });
+    let result = await this.getAllCastMessagesByFid({
+      pageSize,
+      fid,
+      startTimestamp,
+      stopTimestamp,
+    });
     for (;;) {
       if (result.isErr()) {
         throw new Error(`Unable to get all casts for FID ${fid}: ${result.error?.message}`);
@@ -194,7 +202,13 @@ export class MessageReconciliation {
       yield messages;
 
       if (!pageToken?.length) break;
-      result = await this.getAllCastMessagesByFid({ pageSize, pageToken, fid, startTimestamp, stopTimestamp });
+      result = await this.getAllCastMessagesByFid({
+        pageSize,
+        pageToken,
+        fid,
+        startTimestamp,
+        stopTimestamp,
+      });
     }
   }
 
@@ -204,7 +218,12 @@ export class MessageReconciliation {
     startTimestamp?: number,
     stopTimestamp?: number,
   ) {
-    let result = await this.getAllReactionMessagesByFid({ pageSize, fid, startTimestamp, stopTimestamp });
+    let result = await this.getAllReactionMessagesByFid({
+      pageSize,
+      fid,
+      startTimestamp,
+      stopTimestamp,
+    });
     for (;;) {
       if (result.isErr()) {
         throw new Error(`Unable to get all reactions for FID ${fid}: ${result.error?.message}`);
@@ -231,7 +250,12 @@ export class MessageReconciliation {
     startTimestamp?: number,
     stopTimestamp?: number,
   ) {
-    let result = await this.getAllLinkMessagesByFid({ pageSize, fid, startTimestamp, stopTimestamp });
+    let result = await this.getAllLinkMessagesByFid({
+      pageSize,
+      fid,
+      startTimestamp,
+      stopTimestamp,
+    });
     for (;;) {
       if (result.isErr()) {
         throw new Error(`Unable to get all links for FID ${fid}: ${result.error?.message}`);
@@ -242,10 +266,19 @@ export class MessageReconciliation {
       yield messages;
 
       if (!pageToken?.length) break;
-      result = await this.getAllLinkMessagesByFid({ pageSize, pageToken, fid, startTimestamp, stopTimestamp });
+      result = await this.getAllLinkMessagesByFid({
+        pageSize,
+        pageToken,
+        fid,
+        startTimestamp,
+        stopTimestamp,
+      });
     }
 
-    let deltaResult = await this.client.getLinkCompactStateMessageByFid({ fid, pageSize });
+    let deltaResult = await this.client.getLinkCompactStateMessageByFid({
+      fid,
+      pageSize,
+    });
     for (;;) {
       if (deltaResult.isErr()) {
         throw new Error(`Unable to get all link compact results for FID ${fid}: ${deltaResult.error?.message}`);
@@ -256,7 +289,11 @@ export class MessageReconciliation {
       yield messages;
 
       if (!pageToken?.length) break;
-      deltaResult = await this.client.getLinkCompactStateMessageByFid({ pageSize, pageToken, fid });
+      deltaResult = await this.client.getLinkCompactStateMessageByFid({
+        pageSize,
+        pageToken,
+        fid,
+      });
     }
   }
 
@@ -266,7 +303,12 @@ export class MessageReconciliation {
     startTimestamp?: number,
     stopTimestamp?: number,
   ) {
-    let result = await this.getAllVerificationMessagesByFid({ pageSize, fid, startTimestamp, stopTimestamp });
+    let result = await this.getAllVerificationMessagesByFid({
+      pageSize,
+      fid,
+      startTimestamp,
+      stopTimestamp,
+    });
     for (;;) {
       if (result.isErr()) {
         throw new Error(`Unable to get all verifications for FID ${fid}: ${result.error?.message}`);
@@ -293,7 +335,12 @@ export class MessageReconciliation {
     startTimestamp?: number,
     stopTimestamp?: number,
   ) {
-    let result = await this.getAllUserDataMessagesByFid({ pageSize, fid, startTimestamp, stopTimestamp });
+    let result = await this.getAllUserDataMessagesByFid({
+      pageSize,
+      fid,
+      startTimestamp,
+      stopTimestamp,
+    });
     for (;;) {
       if (result.isErr()) {
         throw new Error(`Unable to get all user data messages for FID ${fid}: ${result.error?.message}`);
