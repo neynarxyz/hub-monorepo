@@ -19,7 +19,7 @@ import { randomUUID } from "crypto";
 
 const MAX_PAGE_SIZE = 500;
 
-type DBMessage = {
+export type DBMessage = {
   hash: Uint8Array;
   prunedAt: Date | null;
   revokedAt: Date | null;
@@ -66,11 +66,12 @@ export class MessageReconciliation {
   async reconcileMessagesForFid(
     fid: number,
     onHubMessage: (message: Message, missingInDb: boolean, prunedInDb: boolean, revokedInDb: boolean) => Promise<void>,
-    onDbMessage: (message: DBMessage, missingInHub: boolean) => Promise<void>,
+    onDbMessage?: (message: DBMessage, missingInHub: boolean) => Promise<void>,
     startTimestamp?: number,
     stopTimestamp?: number,
+    types?: MessageType[],
   ) {
-    for (const type of [
+    for (const type of types ?? [
       MessageType.CAST_ADD,
       MessageType.REACTION_ADD,
       MessageType.LINK_ADD,
@@ -86,7 +87,7 @@ export class MessageReconciliation {
     fid: number,
     type: MessageType,
     onHubMessage: (message: Message, missingInDb: boolean, prunedInDb: boolean, revokedInDb: boolean) => Promise<void>,
-    onDbMessage: (message: DBMessage, missingInHub: boolean) => Promise<void>,
+    onDbMessage?: (message: DBMessage, missingInHub: boolean) => Promise<void>,
     startTimestamp?: number,
     stopTimestamp?: number,
   ) {
@@ -136,15 +137,17 @@ export class MessageReconciliation {
     }
 
     // Next, reconcile messages that are in the database but not in the hub
-    const dbMessages = await this.allActiveDbMessagesOfTypeForFid(fid, type, startTimestamp, stopTimestamp);
-    if (dbMessages.isErr()) {
-      this.log.error({ startTimestamp, stopTimestamp }, "Invalid time range provided to reconciliation");
-      return;
-    }
+    if (onDbMessage) {
+      const dbMessages = await this.allActiveDbMessagesOfTypeForFid(fid, type, startTimestamp, stopTimestamp);
+      if (dbMessages.isErr()) {
+        this.log.error({ startTimestamp, stopTimestamp }, "Invalid time range provided to reconciliation");
+        return;
+      }
 
-    for (const dbMessage of dbMessages.value) {
-      const key = Buffer.from(dbMessage.hash).toString("hex");
-      await onDbMessage(dbMessage, !hubMessagesByHash[key]);
+      for (const dbMessage of dbMessages.value) {
+        const key = Buffer.from(dbMessage.hash).toString("hex");
+        await onDbMessage(dbMessage, !hubMessagesByHash[key]);
+      }
     }
   }
 
