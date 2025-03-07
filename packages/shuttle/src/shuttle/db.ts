@@ -159,13 +159,28 @@ export type OnChainEventsTable = {
   body: IdRegisterEventBody | SignerEventBody | StorageRentEventBody | SignerMigratedEventBody;
 };
 
+type UsernamesTable = {
+  id: Generated<string>;
+  fid: Fid;
+  name: string;
+  custodyAddress: Uint8Array | null;
+  deletedAt: Date | null;
+  proofTimestamp: Date;
+  createdAt: Generated<Date>;
+  updatedAt: Generated<Date>;
+};
+
 export type OnChainEventRow = Selectable<OnChainEventsTable>;
 export type InsertableOnChainEventRow = Insertable<OnChainEventsTable>;
+
+export type UsernameRow = Selectable<UsernamesTable>;
+export type InsertableUsernameRow = Insertable<UsernamesTable>;
 
 // ALL TABLES -------------------------------------------------------------------------------------
 export interface HubTables {
   messages: MessagesTable;
   onchain_events: OnChainEventsTable;
+  usernames: UsernamesTable;
 }
 
 export const getDbClient = (connectionString?: string, schema = "public") => {
