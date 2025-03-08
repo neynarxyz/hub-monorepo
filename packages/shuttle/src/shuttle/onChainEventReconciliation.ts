@@ -109,7 +109,7 @@ export class OnChainEventReconciliation {
       }
     }
 
-    // Next, reconcile events that are in the database but not in the on-chain
+    // Next, reconcile on-chain events that are in the database but not on the hub
     if (onDbEvent) {
       const dbEvents = await this.allActiveDbEventsOfTypeForFid(fid, type, startTimestamp, stopTimestamp);
       if (dbEvents.isErr()) {
