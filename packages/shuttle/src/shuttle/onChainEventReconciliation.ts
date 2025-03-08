@@ -32,7 +32,6 @@ type EventKeySource = Pick<OnChainEvent | DBOnChainEvent, "chainId" | "blockNumb
 
 export class OnChainEventReconciliation {
   private client: HubRpcClient;
-  private stream: ClientDuplexStream<OnChainEvent, OnChainEvent> | undefined;
   private db: DB;
   private log: pino.Logger;
 
@@ -46,14 +45,7 @@ export class OnChainEventReconciliation {
     return `${event.chainId}-${event.blockNumber}-${event.logIndex}`;
   }
 
-  close() {
-    if (this.stream) {
-      this.stream.cancel();
-      this.stream = undefined;
-    }
-  }
-
-  async reconcileEventsForFid(
+  async reconcileOnChainEventsForFid(
     fid: number,
     onChainEvent: (event: OnChainEvent, missingInDb: boolean) => Promise<void>,
     onDbEvent?: (event: DBOnChainEvent, missingInOnChain: boolean) => Promise<void>,
@@ -68,11 +60,11 @@ export class OnChainEventReconciliation {
       OnChainEventType.EVENT_TYPE_STORAGE_RENT,
     ]) {
       this.log.debug({ fid, type }, "Reconciling on-chain events for FID");
-      await this.reconcileEventsOfTypeForFid(fid, type, onChainEvent, onDbEvent, startTimestamp, stopTimestamp);
+      await this.reconcileOnChainEventsOfTypeForFid(fid, type, onChainEvent, onDbEvent, startTimestamp, stopTimestamp);
     }
   }
 
-  async reconcileEventsOfTypeForFid(
+  async reconcileOnChainEventsOfTypeForFid(
     fid: number,
     type: OnChainEventType,
     onChainEvent: (event: OnChainEvent, missingInDb: boolean) => Promise<void>,
@@ -82,7 +74,7 @@ export class OnChainEventReconciliation {
   ) {
     const onChainEventsByKey = new Map<string, OnChainEvent>();
     // First, reconcile events that are in the on-chain but not in the database
-    for await (const events of this.allOnChainEventsOfTypeForFid(fid, type, startTimestamp, stopTimestamp)) {
+    for await (const events of this.allHubOnChainEventsOfTypeForFid(fid, type, startTimestamp, stopTimestamp)) {
       const eventKeys = events.map((event: OnChainEvent) => this.getEventKey(event));
 
       if (eventKeys.length === 0) {
@@ -111,7 +103,7 @@ export class OnChainEventReconciliation {
 
     // Next, reconcile on-chain events that are in the database but not on the hub
     if (onDbEvent) {
-      const dbEvents = await this.allActiveDbEventsOfTypeForFid(fid, type, startTimestamp, stopTimestamp);
+      const dbEvents = await this.allActiveDbOnChainEventsOfTypeForFid(fid, type, startTimestamp, stopTimestamp);
       if (dbEvents.isErr()) {
         this.log.error({ fid, type, startTimestamp, stopTimestamp }, "Invalid time range provided to reconciliation");
         return;
@@ -124,7 +116,7 @@ export class OnChainEventReconciliation {
     }
   }
 
-  private async *allOnChainEventsOfTypeForFid(
+  private async *allHubOnChainEventsOfTypeForFid(
     fid: number,
     type: OnChainEventType,
     startTimestamp?: number,
@@ -163,7 +155,7 @@ export class OnChainEventReconciliation {
     }
   }
 
-  private async allActiveDbEventsOfTypeForFid(
+  private async allActiveDbOnChainEventsOfTypeForFid(
     fid: number,
     type: OnChainEventType,
     startTimestamp?: number,
