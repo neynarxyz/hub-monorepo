@@ -158,7 +158,7 @@ type OnChainEventsTable = {
   body: IdRegisterEventBody | SignerEventBody | StorageRentEventBody;
 };
 
-export type OnchainEventRow = Selectable<OnChainEventsTable>;
+export type OnChainEventRow = Selectable<OnChainEventsTable>;
 export type InsertableOnchainEventRow = Insertable<OnChainEventsTable>;
 
 // ALL TABLES -------------------------------------------------------------------------------------
