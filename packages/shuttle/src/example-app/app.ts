@@ -145,7 +145,7 @@ export class App implements MessageHandler {
             body: body,
           })
           .execute();
-        log.info(`Recorded OnchainEvent ${onChainEvent.type} for fid  ${onChainEvent.fid}`);
+        log.info(`Recorded OnChainEvent ${onChainEvent.type} for fid  ${onChainEvent.fid}`);
       } catch (e) {
         log.error("Failed to insert onchain event", e);
       }

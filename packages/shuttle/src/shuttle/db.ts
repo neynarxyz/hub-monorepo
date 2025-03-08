@@ -159,7 +159,7 @@ type OnChainEventsTable = {
 };
 
 export type OnChainEventRow = Selectable<OnChainEventsTable>;
-export type InsertableOnchainEventRow = Insertable<OnChainEventsTable>;
+export type InsertableOnChainEventRow = Insertable<OnChainEventsTable>;
 
 // ALL TABLES -------------------------------------------------------------------------------------
 export interface HubTables {
