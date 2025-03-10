@@ -28,6 +28,7 @@ import {
   IdRegisterEventBody,
   SignerEventBody,
   StorageRentEventBody,
+  SignerMigratedEventBody,
 } from "@farcaster/hub-nodejs";
 import { DrainOuterGeneric, SimplifySingleResult } from "kysely/dist/cjs/util/type-utils.js";
 
@@ -144,18 +145,18 @@ type MessagesTable = {
 export type MessageRow = Selectable<MessagesTable>;
 export type InsertableMessageRow = Insertable<MessagesTable>;
 
-type OnChainEventsTable = {
+export type OnChainEventsTable = {
   id: Generated<string>;
   chainId: bigint;
   createdAt: Generated<Date>;
   updatedAt: Generated<Date>;
   blockTimestamp: Date;
-  fid: Fid;
   blockNumber: bigint;
   logIndex: number;
-  type: OnChainEventType;
   txHash: Uint8Array;
-  body: IdRegisterEventBody | SignerEventBody | StorageRentEventBody;
+  type: OnChainEventType;
+  fid: Fid;
+  body: IdRegisterEventBody | SignerEventBody | StorageRentEventBody | SignerMigratedEventBody;
 };
 
 export type OnChainEventRow = Selectable<OnChainEventsTable>;

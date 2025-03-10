@@ -1,11 +1,11 @@
 import {
-  ClientDuplexStream,
   HubRpcClient,
   OnChainEvent,
   OnChainEventType,
   IdRegisterEventBody,
   SignerEventBody,
   StorageRentEventBody,
+  SignerMigratedEventBody,
 } from "@farcaster/hub-nodejs";
 import { type DB } from "./db";
 import { pino } from "pino";
@@ -25,7 +25,7 @@ export type DBOnChainEvent = {
   logIndex: number;
   type: OnChainEventType;
   txHash: Uint8Array;
-  body: IdRegisterEventBody | SignerEventBody | StorageRentEventBody;
+  body: IdRegisterEventBody | SignerEventBody | StorageRentEventBody | SignerMigratedEventBody;
 };
 
 type EventKeySource = Pick<OnChainEvent | DBOnChainEvent, "chainId" | "blockNumber" | "logIndex">;
@@ -47,8 +47,8 @@ export class OnChainEventReconciliation {
 
   async reconcileOnChainEventsForFid(
     fid: number,
-    onChainEvent: (event: OnChainEvent, missingInDb: boolean) => Promise<void>,
-    onDbEvent?: (event: DBOnChainEvent, missingInOnChain: boolean) => Promise<void>,
+    onHubOnChainEvent: (event: OnChainEvent, missingInDb: boolean) => Promise<void>,
+    onDbOnChainEvent?: (event: DBOnChainEvent, missingInOnChain: boolean) => Promise<void>,
     startTimestamp?: number,
     stopTimestamp?: number,
     types?: OnChainEventType[],
@@ -60,7 +60,14 @@ export class OnChainEventReconciliation {
       OnChainEventType.EVENT_TYPE_STORAGE_RENT,
     ]) {
       this.log.debug({ fid, type }, "Reconciling on-chain events for FID");
-      await this.reconcileOnChainEventsOfTypeForFid(fid, type, onChainEvent, onDbEvent, startTimestamp, stopTimestamp);
+      await this.reconcileOnChainEventsOfTypeForFid(
+        fid,
+        type,
+        onHubOnChainEvent,
+        onDbOnChainEvent,
+        startTimestamp,
+        stopTimestamp,
+      );
     }
   }
 
