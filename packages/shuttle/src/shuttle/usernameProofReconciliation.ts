@@ -127,7 +127,7 @@ export class UsernameProofReconciliation {
     try {
       let query = this.db
         .selectFrom("usernames")
-        .select(["name", "fid", "proofTimestamp", "custodyAddress"])
+        .select(["username", "fid", "proofTimestamp", "custodyAddress"])
         .where("fid", "=", fid)
         .where("deletedAt", "is", null);
 
@@ -141,7 +141,7 @@ export class UsernameProofReconciliation {
       const results = await query.execute();
 
       const proofs = results.map((row) => ({
-        name: Buffer.from(row.name),
+        name: Buffer.from(row.username),
         type: UserNameType.USERNAME_TYPE_FNAME,
         fid: row.fid,
         timestamp: Math.floor(row.proofTimestamp.getTime() / 1000),

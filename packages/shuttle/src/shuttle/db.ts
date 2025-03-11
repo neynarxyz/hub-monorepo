@@ -161,13 +161,13 @@ export type OnChainEventsTable = {
 
 type UsernamesTable = {
   id: Generated<string>;
-  fid: Fid;
-  name: string;
-  custodyAddress: Uint8Array | null;
-  deletedAt: Date | null;
-  proofTimestamp: Date;
   createdAt: Generated<Date>;
   updatedAt: Generated<Date>;
+  deletedAt: Date | null;
+  fid: Fid;
+  username: string;
+  custodyAddress: Uint8Array | null;
+  proofTimestamp: Date;
 };
 
 export type OnChainEventRow = Selectable<OnChainEventsTable>;
