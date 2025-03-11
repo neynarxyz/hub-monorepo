@@ -14,11 +14,32 @@ export class UsernameProofReconciliation {
     this.log = log;
   }
 
-  async reconcileProofsForFid(
+  async reconcileUsernameProofsForFid(
     fid: number,
     onHubProof: (proof: UserNameProof, missingInDb: boolean) => Promise<void>,
     onDbProof?: (proof: UserNameProof, missingInHub: boolean) => Promise<void>,
-    proofType?: UserNameType,
+    startTimestamp?: number,
+    stopTimestamp?: number,
+    types?: UserNameType[],
+  ) {
+    for (const proofType of types ?? [UserNameType.USERNAME_TYPE_FNAME, UserNameType.USERNAME_TYPE_ENS_L1]) {
+      this.log.debug({ fid, proofType, startTimestamp, stopTimestamp }, "Reconciling username proofs for FID");
+      await this.reconcileUsernameProofsOfTypeForFid(
+        fid,
+        proofType,
+        onHubProof,
+        onDbProof,
+        startTimestamp,
+        stopTimestamp,
+      );
+    }
+  }
+
+  async reconcileUsernameProofsOfTypeForFid(
+    fid: number,
+    proofType: UserNameType,
+    onHubProof: (proof: UserNameProof, missingInDb: boolean) => Promise<void>,
+    onDbProof?: (proof: UserNameProof, missingInHub: boolean) => Promise<void>,
     startTimestamp?: number,
     stopTimestamp?: number,
   ): Promise<void> {
