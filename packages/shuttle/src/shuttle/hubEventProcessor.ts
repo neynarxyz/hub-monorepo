@@ -6,7 +6,6 @@ import {
   isLinkCompactStateMessage,
   isLinkRemoveMessage,
   isMergeMessageHubEvent,
-  isMergeOnChainHubEvent,
   isPruneMessageHubEvent,
   isReactionAddMessage,
   isReactionRemoveMessage,
