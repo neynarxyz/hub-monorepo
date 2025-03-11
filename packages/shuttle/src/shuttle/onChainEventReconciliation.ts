@@ -74,8 +74,8 @@ export class OnChainEventReconciliation {
   async reconcileOnChainEventsOfTypeForFid(
     fid: number,
     type: OnChainEventType,
-    onChainEvent: (event: OnChainEvent, missingInDb: boolean) => Promise<void>,
-    onDbEvent?: (event: DBOnChainEvent, missingInOnChain: boolean) => Promise<void>,
+    onHubOnChainEvent: (event: OnChainEvent, missingInDb: boolean) => Promise<void>,
+    onDbOnChainEvent?: (event: DBOnChainEvent, missingInOnChain: boolean) => Promise<void>,
     startTimestamp?: number,
     stopTimestamp?: number,
   ) {
@@ -103,13 +103,13 @@ export class OnChainEventReconciliation {
 
         const dbEvent = dbEventsByKey.get(eventKey);
         if (!dbEvent) {
-          await onChainEvent(event, true);
+          await onHubOnChainEvent(event, true);
         }
       }
     }
 
     // Next, reconcile on-chain events that are in the database but not on the hub
-    if (onDbEvent) {
+    if (onDbOnChainEvent) {
       const dbEvents = await this.allActiveDbOnChainEventsOfTypeForFid(fid, type, startTimestamp, stopTimestamp);
       if (dbEvents.isErr()) {
         this.log.error({ fid, type, startTimestamp, stopTimestamp }, "Invalid time range provided to reconciliation");
@@ -118,7 +118,7 @@ export class OnChainEventReconciliation {
 
       for (const dbEvent of dbEvents.value) {
         const key = this.getEventKey(dbEvent);
-        await onDbEvent(dbEvent, !onChainEventsByKey.has(key));
+        await onDbOnChainEvent(dbEvent, !onChainEventsByKey.has(key));
       }
     }
   }
