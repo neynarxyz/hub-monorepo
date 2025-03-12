@@ -6,10 +6,13 @@ import {
   SignerEventBody,
   StorageRentEventBody,
   SignerMigratedEventBody,
+  fromFarcasterTime,
+  HubResult,
+  OnChainEventResponse,
 } from "@farcaster/hub-nodejs";
 import { type DB } from "./db";
 import { pino } from "pino";
-import { ok } from "neverthrow";
+import { err, ok } from "neverthrow";
 import { extendStackTrace } from "../utils";
 
 const MAX_PAGE_SIZE = 500;
@@ -53,6 +56,28 @@ export class OnChainEventReconciliation {
     stopTimestamp?: number,
     types?: OnChainEventType[],
   ) {
+    let startDate: Date | undefined;
+    if (startTimestamp) {
+      const startUnixTimestampResult = fromFarcasterTime(startTimestamp);
+      if (startUnixTimestampResult.isErr()) {
+        this.log.error({ fid, types, startTimestamp, stopTimestamp }, "Invalid time range provided to reconciliation");
+        return;
+      }
+
+      startDate = new Date(startUnixTimestampResult.value);
+    }
+
+    let stopDate: Date | undefined;
+    if (stopTimestamp) {
+      const stopUnixTimestampResult = fromFarcasterTime(stopTimestamp);
+      if (stopUnixTimestampResult.isErr()) {
+        this.log.error({ fid, types, startTimestamp, stopTimestamp }, "Invalid time range provided to reconciliation");
+        return;
+      }
+
+      stopDate = new Date(stopUnixTimestampResult.value);
+    }
+
     for (const type of types ?? [
       OnChainEventType.EVENT_TYPE_ID_REGISTER,
       OnChainEventType.EVENT_TYPE_SIGNER,
@@ -65,8 +90,8 @@ export class OnChainEventReconciliation {
         type,
         onHubOnChainEvent,
         onDbOnChainEvent,
-        startTimestamp,
-        stopTimestamp,
+        startDate,
+        stopDate,
       );
     }
   }
@@ -76,12 +101,12 @@ export class OnChainEventReconciliation {
     type: OnChainEventType,
     onHubOnChainEvent: (event: OnChainEvent, missingInDb: boolean) => Promise<void>,
     onDbOnChainEvent?: (event: DBOnChainEvent, missingInOnChain: boolean) => Promise<void>,
-    startTimestamp?: number,
-    stopTimestamp?: number,
+    startDate?: Date,
+    stopDate?: Date,
   ) {
     const onChainEventsByKey = new Map<string, OnChainEvent>();
     // First, reconcile events that are in the on-chain but not in the database
-    for await (const events of this.allHubOnChainEventsOfTypeForFid(fid, type, startTimestamp, stopTimestamp)) {
+    for await (const events of this.allHubOnChainEventsOfTypeForFid(fid, type, startDate, stopDate)) {
       const eventKeys = events.map((event: OnChainEvent) => this.getEventKey(event));
 
       if (eventKeys.length === 0) {
@@ -110,9 +135,12 @@ export class OnChainEventReconciliation {
 
     // Next, reconcile on-chain events that are in the database but not on the hub
     if (onDbOnChainEvent) {
-      const dbEvents = await this.allActiveDbOnChainEventsOfTypeForFid(fid, type, startTimestamp, stopTimestamp);
+      const dbEvents = await this.allActiveDbOnChainEventsOfTypeForFid(fid, type, startDate, stopDate);
       if (dbEvents.isErr()) {
-        this.log.error({ fid, type, startTimestamp, stopTimestamp }, "Invalid time range provided to reconciliation");
+        this.log.error(
+          { fid, type, startDate: startDate?.toISOString(), stopDate: stopDate?.toISOString() },
+          "Invalid time range provided to reconciliation",
+        );
         return;
       }
 
@@ -126,10 +154,10 @@ export class OnChainEventReconciliation {
   private async *allHubOnChainEventsOfTypeForFid(
     fid: number,
     type: OnChainEventType,
-    startTimestamp?: number,
-    stopTimestamp?: number,
+    startDate?: Date,
+    stopDate?: Date,
   ) {
-    let result = await this.client.getOnChainEvents({
+    let result: HubResult<OnChainEventResponse> = await this.client.getOnChainEvents({
       pageSize: MAX_PAGE_SIZE,
       fid,
       eventType: type,
@@ -144,8 +172,8 @@ export class OnChainEventReconciliation {
 
       // Filter events by timestamp if provided
       const filteredEvents = events.filter((event: OnChainEvent) => {
-        if (startTimestamp && event.blockTimestamp < startTimestamp) return false;
-        if (stopTimestamp && event.blockTimestamp > stopTimestamp) return false;
+        if (startDate && event.blockTimestamp * 1000 < startDate.getTime()) return false;
+        if (stopDate && event.blockTimestamp * 1000 > stopDate.getTime()) return false;
         return true;
       });
 
@@ -165,19 +193,9 @@ export class OnChainEventReconciliation {
   private async allActiveDbOnChainEventsOfTypeForFid(
     fid: number,
     type: OnChainEventType,
-    startTimestamp?: number,
-    stopTimestamp?: number,
+    startDate?: Date,
+    stopDate?: Date,
   ) {
-    let startDate: Date | undefined;
-    if (startTimestamp) {
-      startDate = new Date(startTimestamp * 1000);
-    }
-
-    let stopDate: Date | undefined;
-    if (stopTimestamp) {
-      stopDate = new Date(stopTimestamp * 1000);
-    }
-
     const query = this.db
       .selectFrom("onchain_events")
       .select([
