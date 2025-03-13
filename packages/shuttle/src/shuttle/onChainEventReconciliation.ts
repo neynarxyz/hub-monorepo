@@ -106,7 +106,12 @@ export class OnChainEventReconciliation {
   ) {
     const onChainEventsByKey = new Map<string, OnChainEvent>();
     // First, reconcile events that are in the on-chain but not in the database
-    for await (const events of this.allHubOnChainEventsOfTypeForFid(fid, type, startDate, stopDate)) {
+    for await (const events of this.allHubOnChainEventsOfTypeForFid(
+      type === OnChainEventType.EVENT_TYPE_SIGNER_MIGRATED ? 0 : fid,
+      type,
+      startDate,
+      stopDate,
+    )) {
       const eventKeys = events.map((event: OnChainEvent) => this.getEventKey(event));
 
       if (eventKeys.length === 0) {
