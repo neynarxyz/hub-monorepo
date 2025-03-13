@@ -153,7 +153,7 @@ export class App implements MessageHandler {
               logIndex: onChainEvent.logIndex,
               txHash: onChainEvent.transactionHash,
               type: onChainEvent.type,
-              fid: onChainEvent.fid,
+              fid: isSignerMigratedOnChainEvent(onChainEvent) ? 0 : onChainEvent.fid,
               body: body as IdRegisterEventBody | SignerEventBody | StorageRentEventBody | SignerMigratedEventBody,
             })
             .execute();
