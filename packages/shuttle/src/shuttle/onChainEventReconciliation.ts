@@ -106,12 +106,7 @@ export class OnChainEventReconciliation {
   ) {
     const onChainEventsByKey = new Map<string, OnChainEvent>();
     // First, reconcile events that are in the on-chain but not in the database
-    for await (const events of this.allHubOnChainEventsOfTypeForFid(
-      type === OnChainEventType.EVENT_TYPE_SIGNER_MIGRATED ? 0 : fid,
-      type,
-      startDate,
-      stopDate,
-    )) {
+    for await (const events of this.allHubOnChainEventsOfTypeForFid(fid, type, startDate, stopDate)) {
       const eventKeys = events.map((event: OnChainEvent) => this.getEventKey(event));
 
       if (eventKeys.length === 0) {
@@ -164,7 +159,7 @@ export class OnChainEventReconciliation {
   ) {
     let result: HubResult<OnChainEventResponse> = await this.client.getOnChainEvents({
       pageSize: MAX_PAGE_SIZE,
-      fid,
+      fid: type === OnChainEventType.EVENT_TYPE_SIGNER_MIGRATED ? 0 : fid,
       eventType: type,
     });
 
@@ -189,7 +184,7 @@ export class OnChainEventReconciliation {
       result = await this.client.getOnChainEvents({
         pageSize: MAX_PAGE_SIZE,
         pageToken,
-        fid,
+        fid: type === OnChainEventType.EVENT_TYPE_SIGNER_MIGRATED ? 0 : fid,
         eventType: type,
       });
     }
