@@ -19,13 +19,18 @@ import {
   getStorageUnitExpiry,
   getStorageUnitType,
   HubEvent,
+  IdRegisterEventBody,
   isCastAddMessage,
   isCastRemoveMessage,
   isIdRegisterOnChainEvent,
   isMergeOnChainHubEvent,
+  isSignerMigratedOnChainEvent,
   isSignerOnChainEvent,
   isStorageRentOnChainEvent,
   Message,
+  SignerEventBody,
+  SignerMigratedEventBody,
+  StorageRentEventBody,
 } from "@farcaster/hub-nodejs";
 import { log } from "./log";
 import { Command } from "@commander-js/extra-typings";
@@ -46,7 +51,7 @@ import {
 } from "./env";
 import * as process from "node:process";
 import url from "node:url";
-import { ok, Result } from "neverthrow";
+import { ok } from "neverthrow";
 import { getQueue, getWorker } from "./worker";
 import { Queue } from "bullmq";
 import { bytesToHex, farcasterTimeToDate } from "../utils";
@@ -134,23 +139,31 @@ export class App implements MessageHandler {
           units: onChainEvent.storageRentEventBody.units,
           payer: bytesToHex(onChainEvent.storageRentEventBody.payer),
         };
+      } else if (isSignerMigratedOnChainEvent(onChainEvent)) {
+        body = {
+          migratedAt: onChainEvent.signerMigratedEventBody.migratedAt,
+        };
       }
-      try {
-        await (txn as AppDb)
-          .insertInto("onchain_events")
-          .values({
-            fid: onChainEvent.fid,
-            timestamp: new Date(onChainEvent.blockTimestamp * 1000),
-            blockNumber: onChainEvent.blockNumber,
-            logIndex: onChainEvent.logIndex,
-            txHash: onChainEvent.transactionHash,
-            type: onChainEvent.type,
-            body: body,
-          })
-          .execute();
-        log.info(`Recorded OnchainEvent ${onChainEvent.type} for fid  ${onChainEvent.fid}`);
-      } catch (e) {
-        log.error("Failed to insert onchain event", e);
+
+      if (Object.keys(body).length > 0) {
+        try {
+          await (txn as AppDb)
+            .insertInto("onchain_events")
+            .values({
+              chainId: BigInt(onChainEvent.chainId),
+              blockTimestamp: new Date(onChainEvent.blockTimestamp * 1000),
+              blockNumber: BigInt(onChainEvent.blockNumber),
+              logIndex: onChainEvent.logIndex,
+              txHash: onChainEvent.transactionHash,
+              type: onChainEvent.type,
+              fid: onChainEvent.fid,
+              body: body as IdRegisterEventBody | SignerEventBody | StorageRentEventBody | SignerMigratedEventBody,
+            })
+            .execute();
+          log.info(`Recorded OnChainEvent ${onChainEvent.type} for fid  ${onChainEvent.fid}`);
+        } catch (e) {
+          log.error("Failed to insert onchain event", e);
+        }
       }
     }
     return false;

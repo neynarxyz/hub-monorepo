@@ -24,6 +24,11 @@ import {
   SignatureScheme,
   UserDataType,
   UserNameType,
+  OnChainEventType,
+  IdRegisterEventBody,
+  SignerEventBody,
+  StorageRentEventBody,
+  SignerMigratedEventBody,
 } from "@farcaster/hub-nodejs";
 import { DrainOuterGeneric, SimplifySingleResult } from "kysely/dist/cjs/util/type-utils.js";
 
@@ -140,9 +145,27 @@ type MessagesTable = {
 export type MessageRow = Selectable<MessagesTable>;
 export type InsertableMessageRow = Insertable<MessagesTable>;
 
+export type OnChainEventsTable = {
+  id: Generated<string>;
+  chainId: bigint;
+  createdAt: Generated<Date>;
+  updatedAt: Generated<Date>;
+  blockTimestamp: Date;
+  blockNumber: bigint;
+  logIndex: number;
+  txHash: Uint8Array;
+  type: OnChainEventType;
+  fid: Fid;
+  body: IdRegisterEventBody | SignerEventBody | StorageRentEventBody | SignerMigratedEventBody;
+};
+
+export type OnChainEventRow = Selectable<OnChainEventsTable>;
+export type InsertableOnChainEventRow = Insertable<OnChainEventsTable>;
+
 // ALL TABLES -------------------------------------------------------------------------------------
 export interface HubTables {
   messages: MessagesTable;
+  onchain_events: OnChainEventsTable;
 }
 
 export const getDbClient = (connectionString?: string, schema = "public") => {
