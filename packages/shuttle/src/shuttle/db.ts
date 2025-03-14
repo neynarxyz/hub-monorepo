@@ -168,6 +168,7 @@ type UsernamesTable = {
   username: string;
   custodyAddress: Uint8Array | null;
   proofTimestamp: Date;
+  type: UserNameType;
 };
 
 export type OnChainEventRow = Selectable<OnChainEventsTable>;
