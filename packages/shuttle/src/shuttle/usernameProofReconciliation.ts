@@ -64,52 +64,56 @@ export class UsernameProofReconciliation {
     startDate?: Date,
     stopDate?: Date,
   ): Promise<void> {
-    const hubProofsResult = await this.getProofsFromHub(fid, proofType, startDate, stopDate);
-    if (hubProofsResult.isErr()) {
-      throw hubProofsResult.error;
-    }
-    const hubProofs = hubProofsResult.value;
-
-    if (hubProofs.length === 0) {
-      this.log.debug(
-        { fid, proofType, startDate: startDate?.toISOString(), stopDate: stopDate?.toISOString() },
-        "No username proofs found in hub",
-      );
-      return;
-    }
-
-    const dbProofs = await this.getProofsFromDb(fid, proofType, startDate, stopDate);
-    if (dbProofs.isErr()) {
-      throw dbProofs.error;
-    }
-
-    // Track latest hub proofs for DB reconciliation
     const hubProofsByKey = new Map<string, UserNameProof>();
 
-    // First process hub proofs and build map for later
-    const dbProofsByKey = new Map<string, UserNameProof>();
-    for (const proof of dbProofs.value) {
-      const key = this.getProofKey(proof);
-      const existingProof = dbProofsByKey.get(key);
-      if (!existingProof || (existingProof.timestamp && proof.timestamp > existingProof.timestamp)) {
+    // First, reconcile proofs that are in the hub but not in the database
+    for await (const proofs of this.allHubUsernameProofsOfTypeForFid(fid, proofType, startDate, stopDate)) {
+      const proofKeys = proofs.map((proof: UserNameProof) => this.getProofKey(proof));
+
+      if (proofKeys.length === 0) {
+        this.log.debug(
+          { fid, proofType, startDate: startDate?.toISOString(), stopDate: stopDate?.toISOString() },
+          "No username proofs found in hub",
+        );
+        continue;
+      }
+
+      const dbProofs = await this.dbProofsMatchingHubProofs(fid, proofType, startDate, stopDate, proofs);
+      if (dbProofs.isErr()) {
+        throw dbProofs.error;
+      }
+
+      const dbProofsByKey = new Map<string, UserNameProof>();
+      for (const proof of dbProofs.value) {
+        const key = this.getProofKey(proof);
         dbProofsByKey.set(key, proof);
+      }
+
+      for (const proof of proofs) {
+        const proofKey = this.getProofKey(proof);
+        hubProofsByKey.set(proofKey, proof);
+
+        const dbProof = dbProofsByKey.get(proofKey);
+        if (!dbProof) {
+          await onHubProof(proof, true);
+        }
       }
     }
 
-    // Process hub proofs immediately and track for DB reconciliation
-    for (const proof of hubProofs) {
-      const key = this.getProofKey(proof);
-      hubProofsByKey.set(key, proof);
-      const dbProof = dbProofsByKey.get(key);
-      const missingInDb = !dbProof;
-      await onHubProof(proof, missingInDb);
-    }
-
-    // Reconcile DB proofs that might be missing from hub
+    // Next, reconcile proofs that are in the database but not in the hub
     if (onDbProof) {
-      for (const [key, dbProof] of dbProofsByKey) {
-        const missingInHub = !hubProofsByKey.has(key);
-        await onDbProof(dbProof, missingInHub);
+      const dbProofs = await this.allActiveDbProofsOfTypeForFid(fid, proofType, startDate, stopDate);
+      if (dbProofs.isErr()) {
+        this.log.error(
+          { fid, proofType, startDate: startDate?.toISOString(), stopDate: stopDate?.toISOString() },
+          "Invalid time range provided to reconciliation",
+        );
+        return;
+      }
+
+      for (const dbProof of dbProofs.value) {
+        const key = this.getProofKey(dbProof);
+        await onDbProof(dbProof, !hubProofsByKey.has(key));
       }
     }
   }
@@ -147,6 +151,7 @@ export class UsernameProofReconciliation {
     proofType?: UserNameType,
     startDate?: Date,
     stopDate?: Date,
+    hubProofs?: UserNameProof[],
   ): Promise<Result<UserNameProof[], Error>> {
     try {
       let query = this.db
@@ -166,6 +171,14 @@ export class UsernameProofReconciliation {
         query = query.where("type", "=", proofType);
       }
 
+      if (hubProofs) {
+        query = query.where(
+          "username",
+          "in",
+          hubProofs.map((p) => bytesToHexString(p.name)._unsafeUnwrap()),
+        );
+      }
+
       const results = await query.execute();
 
       const proofs = results.map((row) => ({
@@ -182,6 +195,41 @@ export class UsernameProofReconciliation {
     } catch (e) {
       return err(new Error(`Failed to get username proofs from DB for FID ${fid}`, { cause: e }));
     }
+  }
+
+  private async *allHubUsernameProofsOfTypeForFid(
+    fid: number,
+    proofType: UserNameType,
+    startDate?: Date,
+    stopDate?: Date,
+  ): AsyncGenerator<UserNameProof[]> {
+    const hubProofsResult = await this.getProofsFromHub(fid, proofType, startDate, stopDate);
+    if (hubProofsResult.isErr()) {
+      throw hubProofsResult.error;
+    }
+
+    // Filter proofs by timestamp if provided
+    const filteredProofs = hubProofsResult.value.filter((proof: UserNameProof) => {
+      if (startDate && proof.timestamp * 1000 < startDate.getTime()) return false;
+      if (stopDate && proof.timestamp * 1000 > stopDate.getTime()) return false;
+      return true;
+    });
+
+    yield filteredProofs;
+  }
+
+  private async allActiveDbProofsOfTypeForFid(fid: number, proofType: UserNameType, startDate?: Date, stopDate?: Date) {
+    return this.getProofsFromDb(fid, proofType, startDate, stopDate);
+  }
+
+  private async dbProofsMatchingHubProofs(
+    fid: number,
+    proofType: UserNameType,
+    startDate?: Date,
+    stopDate?: Date,
+    hubProofs?: UserNameProof[],
+  ) {
+    return this.getProofsFromDb(fid, proofType, startDate, stopDate, hubProofs);
   }
 
   private getProofKey(proof: UserNameProof): string {
