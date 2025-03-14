@@ -177,9 +177,6 @@ export type InsertableOnChainEventRow = Insertable<OnChainEventsTable>;
 export type UsernameRow = Selectable<UsernamesTable>;
 export type InsertableUsernameRow = Insertable<UsernamesTable>;
 
-export type OnChainEventRow = Selectable<OnChainEventsTable>;
-export type InsertableOnChainEventRow = Insertable<OnChainEventsTable>;
-
 // ALL TABLES -------------------------------------------------------------------------------------
 export interface HubTables {
   messages: MessagesTable;
