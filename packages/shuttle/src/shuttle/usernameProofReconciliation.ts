@@ -120,7 +120,7 @@ export class UsernameProofReconciliation {
 
   private async getProofsFromHub(
     fid: number,
-    proofType?: UserNameType,
+    proofType: UserNameType,
     startDate?: Date,
     stopDate?: Date,
   ): Promise<Result<UserNameProof[], Error>> {
@@ -129,11 +129,7 @@ export class UsernameProofReconciliation {
       return err(new Error(`Unable to get username proofs for FID ${fid}`, { cause: result.error }));
     }
 
-    let proofs = result.value.proofs;
-
-    if (proofType !== undefined) {
-      proofs = proofs.filter((proof) => proof.type === proofType);
-    }
+    let proofs = result.value.proofs.filter((proof) => proof.type === proofType);
 
     if (startDate || stopDate) {
       proofs = proofs.filter((proof) => {
@@ -148,7 +144,7 @@ export class UsernameProofReconciliation {
 
   private async getProofsFromDb(
     fid: number,
-    proofType?: UserNameType,
+    proofType: UserNameType,
     startDate?: Date,
     stopDate?: Date,
     hubProofs?: UserNameProof[],
@@ -158,6 +154,7 @@ export class UsernameProofReconciliation {
         .selectFrom("usernames")
         .select(["username", "fid", "proofTimestamp", "custodyAddress", "type"])
         .where("fid", "=", fid)
+        .where("type", "=", proofType)
         .where("deletedAt", "is", null);
 
       if (startDate) {
@@ -165,10 +162,6 @@ export class UsernameProofReconciliation {
       }
       if (stopDate) {
         query = query.where("proofTimestamp", "<", stopDate);
-      }
-
-      if (proofType) {
-        query = query.where("type", "=", proofType);
       }
 
       if (hubProofs) {
