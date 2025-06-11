@@ -1,13 +1,13 @@
 import {
+  bytesToHexString,
+  fromFarcasterTime,
   type HubRpcClient,
   type UserNameProof,
   UserNameType,
-  bytesToHexString,
-  fromFarcasterTime,
 } from "@farcaster/hub-nodejs";
-import { type DB } from "./db";
+import { err, ok, Result } from "neverthrow";
 import { Logger } from "pino";
-import { ok, err, Result } from "neverthrow";
+import { type DB } from "./db";
 
 export class UsernameProofReconciliation {
   private readonly hubClient: HubRpcClient;
@@ -50,7 +50,11 @@ export class UsernameProofReconciliation {
       stopDate = new Date(stopUnixTimestampResult.value);
     }
 
-    for (const proofType of types ?? [UserNameType.USERNAME_TYPE_FNAME, UserNameType.USERNAME_TYPE_ENS_L1]) {
+    for (const proofType of types ?? [
+      UserNameType.USERNAME_TYPE_FNAME,
+      UserNameType.USERNAME_TYPE_ENS_L1,
+      UserNameType.USERNAME_TYPE_BASENAME,
+    ]) {
       this.log.debug({ fid, proofType, startTimestamp, stopTimestamp }, "Reconciling username proofs for FID");
       await this.reconcileUsernameProofsOfTypeForFid(fid, proofType, onHubProof, onDbProof, startDate, stopDate);
     }
@@ -72,7 +76,12 @@ export class UsernameProofReconciliation {
 
       if (proofKeys.length === 0) {
         this.log.debug(
-          { fid, proofType, startDate: startDate?.toISOString(), stopDate: stopDate?.toISOString() },
+          {
+            fid,
+            proofType,
+            startDate: startDate?.toISOString(),
+            stopDate: stopDate?.toISOString(),
+          },
           "No username proofs found in hub",
         );
         continue;
@@ -103,7 +112,12 @@ export class UsernameProofReconciliation {
       const dbProofs = await this.allActiveDbProofsOfTypeForFid(fid, proofType, startDate, stopDate);
       if (dbProofs.isErr()) {
         this.log.error(
-          { fid, proofType, startDate: startDate?.toISOString(), stopDate: stopDate?.toISOString() },
+          {
+            fid,
+            proofType,
+            startDate: startDate?.toISOString(),
+            stopDate: stopDate?.toISOString(),
+          },
           "Invalid time range provided to reconciliation",
         );
         return;
@@ -124,7 +138,11 @@ export class UsernameProofReconciliation {
   ): Promise<Result<UserNameProof[], Error>> {
     const result = await this.hubClient.getUserNameProofsByFid({ fid });
     if (result.isErr()) {
-      return err(new Error(`Unable to get username proofs for FID ${fid}`, { cause: result.error }));
+      return err(
+        new Error(`Unable to get username proofs for FID ${fid}`, {
+          cause: result.error,
+        }),
+      );
     }
 
     let proofs = result.value.proofs.filter((proof) => proof.type === proofType);
@@ -184,7 +202,11 @@ export class UsernameProofReconciliation {
       const filteredProofs = proofType !== undefined ? proofs.filter((p) => p.type === proofType) : proofs;
       return ok(filteredProofs);
     } catch (e) {
-      return err(new Error(`Failed to get username proofs from DB for FID ${fid}`, { cause: e }));
+      return err(
+        new Error(`Failed to get username proofs from DB for FID ${fid}`, {
+          cause: e,
+        }),
+      );
     }
   }
 
