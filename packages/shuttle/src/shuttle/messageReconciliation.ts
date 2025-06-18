@@ -1,12 +1,13 @@
 import {
-  FidTimestampRequest,
+  type ClientDuplexStream,
+  type FidTimestampRequest,
   fromFarcasterTime,
   HubError,
-  HubErrorCode,
-  HubResult,
-  HubRpcClient,
-  Message,
-  MessagesResponse,
+  type HubErrorCode,
+  type HubResult,
+  type HubRpcClient,
+  type Message,
+  type MessagesResponse,
   MessageType,
 } from "@farcaster/hub-nodejs";
 import { randomUUID } from "crypto";

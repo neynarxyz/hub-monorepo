@@ -1,20 +1,33 @@
 {
   "name": "@farcaster/shuttle",
   "version": "0.9.3",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": {
+        "@neynar/interpreted-typescript": "./src/index.ts",
+        "default": "./dist/index.js",
+        "types": "./dist/index.d.ts"
+      }
+    }
+  },
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "require": "./dist/index.js",
-      "import": "./dist/index.mjs",
-      "types": "./dist/index.d.ts"
-    }
-  },
   "files": [
     "dist"
   ],
-  "license": "MIT",
+  "scripts": {
+    "build": "yarn run clean && tsc",
+    "clean": "bash -c 'rm -rf dist/*'",
+    "lint": "biome format src/ --write && biome check src/ --apply",
+    "lint:ci": "biome ci src/",
+    "prepublishOnly": "yarn run build",
+    "start": "tsx src/example-app/app.ts",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest --detectOpenHandles --forceExit",
+    "test:ci": "ENVIRONMENT=test NODE_OPTIONS=--experimental-vm-modules jest --ci --forceExit --coverage"
+  },
   "dependencies": {
     "@farcaster/hot-shots": "^10.0.0",
     "@farcaster/hub-nodejs": "^0.15.8",
@@ -29,16 +42,6 @@
     "pino-pretty": "^10.0.0",
     "sql-formatter": "^13.0.0",
     "tiny-typed-emitter": "^2.1.0"
-  },
-  "scripts": {
-    "build": "tsup --config tsup.config.ts && tsc --emitDeclarationOnly --declarationMap --outDir dist",
-    "start": "tsx src/example-app/app.ts",
-    "clean": "bash -c 'rm -rf dist/*'",
-    "lint": "biome format src/ --write && biome check src/ --apply",
-    "lint:ci": "biome ci src/",
-    "test": "NODE_OPTIONS=--experimental-vm-modules jest --detectOpenHandles --forceExit",
-    "test:ci": "ENVIRONMENT=test NODE_OPTIONS=--experimental-vm-modules jest --ci --forceExit --coverage",
-    "prepublishOnly": "yarn run build"
   },
   "devDependencies": {
     "@biomejs/biome": "1.1.0",
