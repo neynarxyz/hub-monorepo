@@ -1,13 +1,13 @@
-import { Cluster, ClusterOptions, Redis, RedisOptions, ReplyError } from "ioredis";
-import { getHubEventCacheKey, HubClient } from "./hub";
-import { inBatchesOf, sleep } from "../utils";
-import { statsd } from "../statsd";
 import { extractTimestampFromEvent, HubEvent } from "@farcaster/hub-nodejs";
-import { log } from "../log";
-import { pino } from "pino";
-import { ProcessResult } from "./index";
-import { Result } from "neverthrow";
+import { type Cluster, type ClusterOptions, type Redis, type RedisOptions, ReplyError } from "ioredis";
+import type { Result } from "neverthrow";
+import type { pino } from "pino";
 import { TypedEmitter } from "tiny-typed-emitter";
+import { log } from "../log.ts";
+import { statsd } from "../statsd.ts";
+import { inBatchesOf, sleep } from "../utils.ts";
+import { type getHubEventCacheKey, type HubClient } from "./hub.ts";
+import type { ProcessResult } from "./index.ts";
 
 // Dummy name since we don't need unique names to get desired semantics
 const DUMMY_CONSUMER_GROUP = "x";

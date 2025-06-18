@@ -1,19 +1,19 @@
 import {
-  ClientDuplexStream,
-  FidTimestampRequest,
+  type ClientDuplexStream,
+  type FidTimestampRequest,
   fromFarcasterTime,
   HubError,
-  HubErrorCode,
-  HubResult,
-  HubRpcClient,
-  Message,
-  MessagesResponse,
+  type HubErrorCode,
+  type HubResult,
+  type HubRpcClient,
+  type Message,
+  type MessagesResponse,
   MessageType,
-  StreamFetchRequest,
-  StreamFetchResponse,
+  type StreamFetchRequest,
+  type StreamFetchResponse,
 } from "@farcaster/hub-nodejs";
-import { DB, MessageRow, sql } from "./db";
-import { pino } from "pino";
+import { type DB, type MessageRow, sql } from "./db.ts";
+import type { pino } from "pino";
 import { ok, err } from "neverthrow";
 import { randomUUID } from "crypto";
 
