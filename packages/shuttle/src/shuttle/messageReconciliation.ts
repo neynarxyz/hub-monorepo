@@ -12,8 +12,8 @@ import {
 } from "@farcaster/hub-nodejs";
 import { randomUUID } from "crypto";
 import { err, ok } from "neverthrow";
-import { pino } from "pino";
-import { DB, MessageRow, sql } from "./db";
+import type { pino } from "pino";
+import { type DB, type MessageRow, sql } from "./db.ts";
 
 const MAX_PAGE_SIZE = 500;
 
@@ -85,6 +85,7 @@ export class MessageReconciliation {
       const dbMessages = await this.db
         .selectFrom("messages")
         .select(["prunedAt", "revokedAt", "hash", "fid", "type", "raw"])
+        // @ts-ignore
         .where("hash", "=", sql`any(${messageHashes})`)
         .execute();
 
