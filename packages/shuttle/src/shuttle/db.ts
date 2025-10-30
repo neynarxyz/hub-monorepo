@@ -137,6 +137,8 @@ export type MessageBodyJson =
 
 type MessagesTable = {
   id: Generated<string>;
+  createdAt: Generated<Date>;
+  updatedAt: Generated<Date>;
   fid: number;
   type: MessageType;
   timestamp: Date;
