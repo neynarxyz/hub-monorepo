@@ -18,8 +18,5 @@
   "devDependencies": {
     "tsx": "^3.12.5",
     "typescript": "^5.0.0"
-  },
-  "resolutions": {
-    "protobufjs": "^7.5.5"
   }
 }
