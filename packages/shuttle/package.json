@@ -34,14 +34,14 @@
     "tiny-typed-emitter": "^2.1.0"
   },
   "scripts": {
-    "build": "yarn run clean && tsc",
+    "build": "pnpm run clean && tsc",
     "start": "tsx src/example-app/app.ts",
     "clean": "bash -c 'rm -rf dist/*'",
     "lint": "biome format src/ --write && biome check src/ --apply",
     "lint:ci": "biome ci src/",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --detectOpenHandles --forceExit",
     "test:ci": "ENVIRONMENT=test NODE_OPTIONS=--experimental-vm-modules jest --ci --forceExit --coverage",
-    "prepublishOnly": "yarn run build"
+    "prepublishOnly": "pnpm run build"
   },
   "devDependencies": {
     "@biomejs/biome": "1.1.0",
