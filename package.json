@@ -3,7 +3,6 @@
   "description": "A monorepo for the Farcaster Hub",
   "version": "0.0.0",
   "private": true,
-  "packageManager": "yarn@1.22.19",
   "workspaces": ["apps/*", "packages/*"],
   "scripts": {
     "build": "./node_modules/.bin/turbo run build",
