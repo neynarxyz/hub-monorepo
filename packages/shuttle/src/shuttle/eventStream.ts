@@ -200,6 +200,7 @@ export class EventStreamConnection {
    * Does an approximate trim to reduce effort by Redis.
    */
   async trim(key: string, timestamp: Date) {
+    if (this.client.status !== "ready") return 0;
     return await this.client.xtrim(key, "MINID", "~", timestamp.getTime());
   }
 }
@@ -674,6 +675,7 @@ export class HubEventStreamConsumer extends TypedEmitter<HubEventStreamConsumerE
   }
 
   public async clearOldEvents() {
+    if (this.stopped) return 0;
     const deleteThresholdTimestamp = new Date(Date.now() - this.eventDeletionThreshold);
 
     const startTime = Date.now();
