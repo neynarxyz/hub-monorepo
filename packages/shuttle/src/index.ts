@@ -1,2 +1,2 @@
 export * from "./shuttle";
-export { convertProtobufMessageBodyToJson, protocolBytesToString } from "./utils";
+export { convertProtobufMessageBodyToJson, protocolBytesToString, scrubStringFieldsForPostgresJson } from "./utils";

@@ -62,6 +62,36 @@ export function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// Strips characters that PostgreSQL can store as a `json` escape but cannot
+// later materialize as TEXT — specifically NUL (`\u0000`) and unpaired UTF-16
+// surrogates. These pass `json` validation but throw on `body::jsonb` and on
+// any `body->>'key'` extraction, leaving rows that look fine at INSERT and
+// blow up at read time. Pre-cleaning here keeps every downstream consumer
+// (current `json` text-extraction, future `jsonb` migration) happy.
+//
+// biome-ignore lint/suspicious/noExplicitAny: recursive walk over JSON-shaped data
+export function scrubStringFieldsForPostgresJson<T>(value: T): T {
+  if (typeof value === "string") {
+    return value
+      .replace(/\u0000/g, "")
+      .replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/g, "")
+      .replace(/(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, "") as T;
+  }
+  if (Array.isArray(value)) {
+    // biome-ignore lint/suspicious/noExplicitAny: see above
+    return value.map(scrubStringFieldsForPostgresJson) as any;
+  }
+  if (value !== null && typeof value === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      out[k] = scrubStringFieldsForPostgresJson(v);
+    }
+    // biome-ignore lint/suspicious/noExplicitAny: see above
+    return out as any;
+  }
+  return value;
+}
+
 export function bytesToHex(value: Uint8Array): `0x${string}` {
   return `0x${Buffer.from(value).toString("hex")}`;
 }
@@ -241,7 +271,7 @@ export function convertProtobufMessageBodyToJson(message: Message): MessageBodyJ
       throw new Error(`Unknown message type ${message.data?.type}`);
   }
 
-  return body;
+  return scrubStringFieldsForPostgresJson(body);
 }
 
 // biome-ignore lint/suspicious/noExplicitAny: generic
