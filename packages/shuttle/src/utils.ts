@@ -68,7 +68,10 @@ export function sleep(ms: number) {
 // any `body->>'key'` extraction, leaving rows that look fine at INSERT and
 // blow up at read time. Pre-cleaning here keeps every downstream consumer
 // (current `json` text-extraction, future `jsonb` migration) happy.
-type JsonValue = string | number | boolean | null | JsonValue[] | { [k: string]: JsonValue };
+// `undefined` is included for compatibility with `MessageBodyJson`'s optional
+// fields (e.g. `parent?: ...`); they serialize as absent keys but the TS type
+// admits `undefined`.
+type JsonValue = string | number | boolean | null | undefined | JsonValue[] | { [k: string]: JsonValue };
 
 export function scrubStringFieldsForPostgresJson(value: JsonValue): JsonValue {
   if (typeof value === "string") {
@@ -80,7 +83,7 @@ export function scrubStringFieldsForPostgresJson(value: JsonValue): JsonValue {
   if (Array.isArray(value)) {
     return value.map(scrubStringFieldsForPostgresJson);
   }
-  if (value !== null && typeof value === "object") {
+  if (value !== null && value !== undefined && typeof value === "object") {
     const out: Record<string, JsonValue> = {};
     for (const [k, v] of Object.entries(value)) {
       out[k] = scrubStringFieldsForPostgresJson(v);
@@ -269,7 +272,7 @@ export function convertProtobufMessageBodyToJson(message: Message): MessageBodyJ
       throw new Error(`Unknown message type ${message.data?.type}`);
   }
 
-  return scrubStringFieldsForPostgresJson(body as unknown as JsonValue) as MessageBodyJson;
+  return scrubStringFieldsForPostgresJson(body as JsonValue) as MessageBodyJson;
 }
 
 // biome-ignore lint/suspicious/noExplicitAny: generic
