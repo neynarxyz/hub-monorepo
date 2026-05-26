@@ -68,26 +68,24 @@ export function sleep(ms: number) {
 // any `body->>'key'` extraction, leaving rows that look fine at INSERT and
 // blow up at read time. Pre-cleaning here keeps every downstream consumer
 // (current `json` text-extraction, future `jsonb` migration) happy.
-//
-// biome-ignore lint/suspicious/noExplicitAny: recursive walk over JSON-shaped data
-export function scrubStringFieldsForPostgresJson<T>(value: T): T {
+type JsonValue = string | number | boolean | null | JsonValue[] | { [k: string]: JsonValue };
+
+export function scrubStringFieldsForPostgresJson(value: JsonValue): JsonValue {
   if (typeof value === "string") {
     return value
       .replace(/\u0000/g, "")
       .replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/g, "")
-      .replace(/(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, "") as T;
+      .replace(/(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, "");
   }
   if (Array.isArray(value)) {
-    // biome-ignore lint/suspicious/noExplicitAny: see above
-    return value.map(scrubStringFieldsForPostgresJson) as any;
+    return value.map(scrubStringFieldsForPostgresJson);
   }
   if (value !== null && typeof value === "object") {
-    const out: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+    const out: Record<string, JsonValue> = {};
+    for (const [k, v] of Object.entries(value)) {
       out[k] = scrubStringFieldsForPostgresJson(v);
     }
-    // biome-ignore lint/suspicious/noExplicitAny: see above
-    return out as any;
+    return out;
   }
   return value;
 }
@@ -271,7 +269,7 @@ export function convertProtobufMessageBodyToJson(message: Message): MessageBodyJ
       throw new Error(`Unknown message type ${message.data?.type}`);
   }
 
-  return scrubStringFieldsForPostgresJson(body);
+  return scrubStringFieldsForPostgresJson(body as unknown as JsonValue) as MessageBodyJson;
 }
 
 // biome-ignore lint/suspicious/noExplicitAny: generic
